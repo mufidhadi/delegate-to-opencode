@@ -70,8 +70,14 @@ Models use the `provider/model` format (e.g. `anthropic/claude-sonnet-4`, `openc
 alongside built-in ones. **Never invent a model ID.** `opencode models` is the only source of
 truth — treat its output as the allowlist.
 
-Reasoning effort is controlled via `--variant` (provider-specific, e.g. `high`, `max`,
-`minimal`). Default is provider-dependent; omit to use the provider's default.
+Reasoning effort is a variant, which opencode v2 takes as part of the model ID
+(`provider/model#variant`). The wrapper's `-v <variant>` appends `#variant` to `-m` for you, and
+requires `-m`. Not every model has every variant (opencode answers `Variant unavailable ...`);
+omit `-v` to use the model's default.
+
+**Local note (mas mufid's laptop):** opencode's own default model currently fails here (OpenRouter
+provider filter), so always pass `-m` explicitly, e.g. `-m opencode-go/qwen3.8-flash`. Check
+`opencode models` first; some providers are out of balance or at their free limit.
 
 ## 3. Write the brief
 

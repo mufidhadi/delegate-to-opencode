@@ -56,14 +56,19 @@ mkdir -p "$RUN_DIR"
 if [[ "$1" == "-" ]]; then cat > "$RUN_DIR/prompt.md"; else printf '%s\n' "$1" > "$RUN_DIR/prompt.md"; fi
 [[ -s "$RUN_DIR/prompt.md" ]] || die "empty prompt"
 
+# opencode v2 has no --variant flag; the variant is part of the model ID (provider/model#variant).
+if [[ -n "$VARIANT" ]]; then
+  [[ -n "$MODEL" ]] || die "a variant requires a model (-m provider/model)"
+  MODEL="$MODEL#$VARIANT"
+fi
+
+# opencode v2 has no --dir flag; the working directory is set by cd in a subshell below.
 args=(opencode run
   --format json
-  --dir "$WORKDIR"
   --title "$LABEL"
 )
 [[ $AUTO -eq 1 ]] && args+=(--auto)
 [[ -n "$MODEL" ]]   && args+=(-m "$MODEL")
-[[ -n "$VARIANT" ]] && args+=(--variant "$VARIANT")
 [[ -n "$AGENT" ]]   && args+=(--agent "$AGENT")
 [[ -n "$RESUME" ]]  && args+=(-s "$RESUME")
 [[ $FORK -eq 1 ]]   && args+=(--fork)
@@ -76,7 +81,7 @@ echo "RUN_DIR=$RUN_DIR"
 echo "model=${MODEL:-<opencode default>} variant=${VARIANT:-<default>} workdir=$WORKDIR${RESUME:+ resume=$RESUME}"
 
 set +e
-"${args[@]}" > "$RUN_DIR/raw.log" 2> "$RUN_DIR/stderr.log"
+( cd "$WORKDIR" && "${args[@]}" ) > "$RUN_DIR/raw.log" 2> "$RUN_DIR/stderr.log"
 status=$?
 set -e
 
@@ -84,8 +89,10 @@ grep '^{' "$RUN_DIR/raw.log" > "$RUN_DIR/events.jsonl" || true
 
 if command -v jq >/dev/null; then
   jq -r 'select(.sessionID) | .sessionID' "$RUN_DIR/events.jsonl" 2>/dev/null | head -1 > "$RUN_DIR/session_id" || true
-  jq -j 'select(.type=="text") | .text // .data // empty' "$RUN_DIR/events.jsonl" > "$RUN_DIR/last_message.txt" 2>/dev/null || true
-  jq -c 'select(.type=="end" or .type=="done" or .type=="error")' "$RUN_DIR/events.jsonl" 2>/dev/null | tail -1 > "$RUN_DIR/meta.json" || true
+  # v2 puts assistant text in .part.text; older versions used .text / .data.
+  jq -j 'select(.type=="text") | .part.text // .text // .data // empty' "$RUN_DIR/events.jsonl" > "$RUN_DIR/last_message.txt" 2>/dev/null || true
+  jq -c 'select(.type=="end" or .type=="done" or .type=="error" or .type=="step_finish")' "$RUN_DIR/events.jsonl" 2>/dev/null | tail -1 > "$RUN_DIR/meta.json" || true
+  jq -r 'select(.type=="error") | "opencode error: " + (.error.message // .error.type // "unknown")' "$RUN_DIR/events.jsonl" 2>/dev/null | head -1 > "$RUN_DIR/error.txt" || true
 fi
 
 if [[ ! -s "$RUN_DIR/session_id" ]]; then
@@ -99,7 +106,9 @@ if [[ -s "$RUN_DIR/last_message.txt" ]]; then
   echo "--- last message ---"
   cat "$RUN_DIR/last_message.txt"
 else
-  echo "--- no final message; stderr tail ---"
+  echo "--- no final message ---"
+  [[ -s "$RUN_DIR/error.txt" ]] && cat "$RUN_DIR/error.txt"
+  echo "--- stderr tail ---"
   tail -20 "$RUN_DIR/stderr.log" 2>/dev/null || true
 fi
 exit "$status"
