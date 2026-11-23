@@ -5,7 +5,9 @@ Install https://github.com/luckeyfaraday/delegate-to-opencode as a Claude Code s
 opencode as a background sub-agent.
 
 ## Repo
-- Upstream: https://github.com/luckeyfaraday/delegate-to-opencode (not pushed to; no fork created)
+- Upstream: https://github.com/luckeyfaraday/delegate-to-opencode (read-only, nothing pushed; remote `upstream`)
+- Fork (public, same visibility as upstream): https://github.com/mufidhadi/delegate-to-opencode (remote `origin`, ssh)
+- Pushed branch `fix/opencode-v2-compat` only; fork `main` is untouched upstream `main`
 - Local clone: `~/project/mufid/delegate-to-opencode`
 - Install: symlink `~/.claude/skills/opencode -> ~/project/mufid/delegate-to-opencode`
 - Branch: `fix/opencode-v2-compat`
@@ -46,7 +48,7 @@ bash + jq (wrapper), opencode v2.2.7 CLI, pytest 9.2 via uv (tests).
 - `--resume`/`--fork` verified only against the stub, not real opencode.
 - Parallel worktree flow (SKILL.md step 8) not run.
 - Stub reflects behaviour observed on 2026-11-23 with v2.2.7; newer versions may differ.
-- Patch is local only; upstream not notified.
+- No pull request opened to upstream; upstream not notified.
 
 ## Lessons learned
 - Third-party skills written for one CLI major version can silently break on the next; run one real end-to-end call right after install.
